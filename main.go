@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"context"
+	"keys_service/app"
+)
 
 func main() {
-	fmt.Println("hello world")
+	ctx := context.Background()
+
+	a := app.App{}
+	a.Run(ctx)
 }
