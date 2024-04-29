@@ -4,12 +4,23 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/pem"
 )
 
-type RSAGenerator struct{}
+type IRsaGenerator interface {
+	NewKey() ([]byte, error)
+}
 
-func (r RSAGenerator) GenerateRSAKey() ([]byte, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+func NewRsaGenerator(bits int) IRsaGenerator {
+	return &RsaGenerator{bits}
+}
+
+type RsaGenerator struct {
+	bits int
+}
+
+func (r *RsaGenerator) NewKey() ([]byte, error) {
+	key, err := rsa.GenerateKey(rand.Reader, r.bits)
 	if err != nil {
 		return nil, err
 	}
@@ -19,5 +30,8 @@ func (r RSAGenerator) GenerateRSAKey() ([]byte, error) {
 		return nil, err
 	}
 
-	return keyBytes, nil
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: keyBytes,
+	}), nil
 }

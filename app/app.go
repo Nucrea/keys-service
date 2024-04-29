@@ -2,34 +2,20 @@ package app
 
 import (
 	"context"
-	"fmt"
 )
 
 type App struct{}
 
 func (a *App) Run(ctx context.Context) {
-	const stackLen = 100
+	generator := NewRsaGenerator(2048)
+	stack := NewStack[[]byte](5000)
+	keysService := NewKeysService(generator, stack, 5000, 16)
 
-	stack := NewStack[[]byte](stackLen)
-	rsaGenerator := RSAGenerator{}
+	go keysService.Routine(ctx)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		if stack.Len() >= stackLen {
-			continue
-		}
-
-		key, err := rsaGenerator.GenerateRSAKey()
-		if err != nil {
-			fmt.Printf("error generating rsa key: %s\n", err.Error())
-		}
-
-		stack.Push(key)
-		fmt.Printf("key generated (stack size: %d)\n", stack.Len())
+	server := Server{keysService}
+	err := server.Run(ctx, ":8080")
+	if err != nil {
+		panic(err)
 	}
 }

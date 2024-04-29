@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStackBasic(t *testing.T) {
+func TestStack(t *testing.T) {
 	stack := NewStack[int](10)
 
 	require.Equal(t, 0, stack.Len())

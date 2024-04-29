@@ -1,39 +1,30 @@
 package app
 
 import (
-	"sync/atomic"
-	"time"
+	"sync"
 )
 
-func NewStack[T any](capacity int) *Stack[T] {
-	spinlock := &atomic.Bool{}
-	spinlock.Store(true)
-
+func NewStack[T any](initialCapacity int) *Stack[T] {
 	return &Stack[T]{
-		spinlock: spinlock,
-		array:    make([]T, 0, capacity),
+		array: make([]T, 0, initialCapacity),
 	}
 }
 
 type Stack[T any] struct {
-	spinlock *atomic.Bool
-	array    []T
+	mutex sync.RWMutex
+	array []T
 }
 
 func (s *Stack[T]) Push(val T) {
-	for !s.spinlock.Swap(false) {
-		time.Sleep(time.Nanosecond)
-	}
-	defer s.spinlock.Swap(true)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	s.array = append(s.array, val)
 }
 
 func (s *Stack[T]) Pop() (T, bool) {
-	for !s.spinlock.Swap(false) {
-		time.Sleep(time.Nanosecond)
-	}
-	defer s.spinlock.Swap(true)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	var retVal T
 	if len(s.array) == 0 {
@@ -47,10 +38,8 @@ func (s *Stack[T]) Pop() (T, bool) {
 }
 
 func (s *Stack[T]) Len() int {
-	for !s.spinlock.Swap(false) {
-		time.Sleep(time.Nanosecond)
-	}
-	defer s.spinlock.Swap(true)
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	return len(s.array)
 }
