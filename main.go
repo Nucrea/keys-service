@@ -6,8 +6,6 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
-
 	a := app.App{}
-	a.Run(ctx)
+	a.Run(context.Background())
 }

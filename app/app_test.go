@@ -15,12 +15,12 @@ func TestApp(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	for i := 0; i < 200; i++ {
-		resp, err := http.DefaultClient.Get("http://localhost:8080/health")
+		resp, err := http.DefaultClient.Get("http://localhost:8081/health")
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.Equal(t, 200, resp.StatusCode)
 
-		resp, err = http.DefaultClient.Get("http://localhost:8080/key")
+		resp, err = http.DefaultClient.Get("http://localhost:8081/key")
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.Equal(t, 200, resp.StatusCode)

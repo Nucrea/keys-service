@@ -2,16 +2,19 @@ package app
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestKeysServiceGetKey(t *testing.T) {
+	logger := zerolog.New(os.Stdout)
 	stack := NewStack[[]byte](1)
 	generator := NewRsaGenerator(2048)
-	keysService := NewKeysService(generator, stack, 1, 1)
+	keysService := NewKeysService(&logger, generator, stack, 1, 1)
 
 	testBytes := []byte("test bytes")
 	stack.Push(testBytes)
@@ -28,9 +31,10 @@ func TestKeysServiceGetKey(t *testing.T) {
 func TestKeysServiceRoutine(t *testing.T) {
 	keysCount := 100
 
+	logger := zerolog.New(os.Stdout)
 	stack := NewStack[[]byte](keysCount)
 	generator := NewRsaGenerator(2048)
-	keysService := NewKeysService(generator, stack, keysCount, 16)
+	keysService := NewKeysService(&logger, generator, stack, keysCount, 16)
 
 	go keysService.Routine(context.Background())
 
@@ -40,9 +44,10 @@ func TestKeysServiceRoutine(t *testing.T) {
 }
 
 func BenchmarkKeysService(t *testing.B) {
+	logger := zerolog.New(os.Stdout)
 	stack := NewStack[[]byte](t.N)
 	generator := NewRsaGenerator(2048)
-	keysService := NewKeysService(generator, stack, t.N, 16)
+	keysService := NewKeysService(&logger, generator, stack, t.N, 16)
 
 	go keysService.Routine(context.Background())
 

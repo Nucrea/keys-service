@@ -19,9 +19,6 @@ type Server struct {
 }
 
 func (s *Server) Run(ctx context.Context, addr string) error {
-	getHealthPath := []byte("/health")
-	getKeyPath := []byte("/key")
-
 	listenCfg := net.ListenConfig{}
 	listener, err := listenCfg.Listen(ctx, "tcp4", addr)
 	if err != nil {
@@ -30,10 +27,10 @@ func (s *Server) Run(ctx context.Context, addr string) error {
 
 	return fasthttp.Serve(listener, func(ctx *fasthttp.RequestCtx) {
 		switch {
-		case bytes.Equal(getHealthPath, ctx.Path()):
+		case bytes.Equal([]byte("/health"), ctx.Path()):
 			s.getHealthHandler(ctx)
 
-		case bytes.Equal(getKeyPath, ctx.Path()):
+		case bytes.Equal([]byte("/key"), ctx.Path()):
 			s.getKeyHandler(ctx)
 
 		default:
@@ -47,14 +44,14 @@ func (s *Server) getHealthHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func (s *Server) getKeyHandler(ctx *fasthttp.RequestCtx) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1200; i++ {
 		key, ok := s.KeysService.GetKey()
 		if ok {
 			ctx.Write(key)
 			ctx.SetStatusCode(http.StatusOK)
 			return
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	ctx.SetStatusCode(http.StatusTooManyRequests)
