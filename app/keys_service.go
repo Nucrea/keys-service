@@ -36,18 +36,23 @@ func (k *KeysService) GetKey() ([]byte, bool) {
 	return k.stack.Pop()
 }
 
-func (k *KeysService) Routine(ctx context.Context) {
+func (k *KeysService) Routine(ctx context.Context) error {
 	logTicker := time.NewTicker(10 * time.Second)
-	errorChan := make(chan error, k.maxThreads)
+	errorChan := make(chan error, 2*k.maxThreads)
 	atmThreads := atomic.Int64{}
 	errorsCount := 0
 
 	defer func() {
+		k.logger.Log().Msg("stopping keys routine")
+
 		for atmThreads.Load() > 0 {
 			k.idle()
 		}
+
 		close(errorChan)
 		logTicker.Stop()
+
+		k.logger.Log().Msg("keys routine stopped")
 	}()
 
 	k.logger.Log().Msgf("keys routine started, threads=%d, capacity=%d", k.maxThreads, k.capacity)
@@ -55,7 +60,7 @@ func (k *KeysService) Routine(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		default:
 		}
 
@@ -96,7 +101,7 @@ func (k *KeysService) keyJob(atmThreads *atomic.Int64, errorChan *chan error) {
 
 	key, err := k.rsaGenerator.NewKey()
 	if err != nil {
-		*errorChan <- fmt.Errorf("error generating rsa key: %w", err)
+		*errorChan <- fmt.Errorf("error when generating rsa key: %w", err)
 		return
 	}
 

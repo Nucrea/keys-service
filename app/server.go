@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/valyala/fasthttp"
 )
 
@@ -15,6 +16,7 @@ type IKeysService interface {
 }
 
 type Server struct {
+	logger      *zerolog.Logger
 	KeysService IKeysService
 }
 
@@ -24,6 +26,27 @@ func (s *Server) Run(ctx context.Context, addr string) error {
 	if err != nil {
 		return err
 	}
+	s.logger.Log().Msgf("server listener initialized on %s", addr)
+
+	finishedChan := make(chan struct{})
+	go func() {
+		<-ctx.Done()
+		listener.Close()
+		close(finishedChan)
+	}()
+
+	defer func() {
+		s.logger.Log().Msgf("stopping server, waiting for listener to close...")
+
+		timeoutTicker := time.NewTicker(1 * time.Second)
+		defer timeoutTicker.Stop()
+
+		select {
+		case <-timeoutTicker.C:
+		case <-finishedChan:
+		}
+		s.logger.Log().Msgf("server stopped")
+	}()
 
 	return fasthttp.Serve(listener, func(ctx *fasthttp.RequestCtx) {
 		switch {

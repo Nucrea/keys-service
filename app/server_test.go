@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +31,8 @@ func TestServer(t *testing.T) {
 
 	errChan := make(chan error, 1)
 
-	server := Server{&MockKeysService{1}}
+	logger := zerolog.New(os.Stdout)
+	server := Server{&logger, &MockKeysService{1}}
 	go func() {
 		errChan <- server.Run(ctx, port)
 	}()
