@@ -51,16 +51,11 @@ func (a *App) Run(ctx context.Context) {
 	<-appCtx.Done()
 	logger.Log().Msg("stopping service, waiting for goroutines to finish...")
 
-	timeoutTicker := time.NewTicker(time.Second)
-	defer timeoutTicker.Stop()
-
+	timestamp := time.Now().Add(time.Second)
 	for {
-		select {
-		case <-timeoutTicker.C:
+		if time.Now().After(timestamp) {
 			logger.Fatal().Msg("some routines not stopping, have to call os.Exit")
-		default:
 		}
-
 		if workers.Load() <= 0 {
 			break
 		}
