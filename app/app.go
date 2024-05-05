@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"keys_service/args"
+	"keys_service/config"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -13,15 +15,29 @@ import (
 
 type App struct{}
 
-func (a *App) Run(ctx context.Context) {
+func (a *App) Run(ctx context.Context, cmdArgs []string) {
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 	logger.Log().Msg("starting key service...")
 
+	args, err := args.NewArgs(cmdArgs)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("error parsing command line arguments")
+	}
+
+	conf, err := config.NewConfig(args.GetConfigFilePath())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("error opening config file")
+	}
+
+	a.RunWithConfig(ctx, &logger, conf)
+}
+
+func (a *App) RunWithConfig(ctx context.Context, logger *zerolog.Logger, conf config.Config) {
 	generator := NewRsaGenerator(2048)
-	stack := NewStack[[]byte](5000)
-	keysService := NewKeysService(&logger, generator, stack, 5000, 16)
+	stack := NewStack[[]byte](int(conf.GetStackSize()))
+	keysService := NewKeysService(logger, generator, stack, int(conf.GetStackSize()), int(conf.GetThreadsCount()))
 	server := &Server{
-		logger:      &logger,
+		logger:      logger,
 		KeysService: keysService,
 	}
 
@@ -39,7 +55,7 @@ func (a *App) Run(ctx context.Context) {
 		workers.Add(-1)
 	}()
 	go func() {
-		err := server.Run(appCtx, ":8080")
+		err := server.Run(appCtx, conf.GetPort())
 		if err != nil {
 			logger.Err(err).Msg("server routine stopped with error")
 		}

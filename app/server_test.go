@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
@@ -26,8 +27,10 @@ func (k *MockKeysService) GetKey() ([]byte, bool) {
 }
 
 func TestServer(t *testing.T) {
-	ctx := context.Background()
-	port := ":8080"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	port := uint16(8080)
 
 	errChan := make(chan error, 1)
 
@@ -45,22 +48,24 @@ func TestServer(t *testing.T) {
 	case <-time.NewTimer(time.Second).C:
 	}
 
+	addr := fmt.Sprintf("http://localhost:%d", port)
+
 	t.Run("health route returns 200", func(t *testing.T) {
-		resp, err := http.DefaultClient.Get("http://localhost" + port + "/health")
+		resp, err := http.DefaultClient.Get(addr + "/health")
 		assert.NoError(t, err)
 		require.NotNil(t, resp)
 		require.Equal(t, 200, resp.StatusCode)
 	})
 
 	t.Run("key route returns 200", func(t *testing.T) {
-		resp, err := http.DefaultClient.Get("http://localhost" + port + "/key")
+		resp, err := http.DefaultClient.Get(addr + "/key")
 		assert.NoError(t, err)
 		require.NotNil(t, resp)
 		require.Equal(t, 200, resp.StatusCode)
 	})
 
 	t.Run("key route returns 502", func(t *testing.T) {
-		resp, err := http.DefaultClient.Get("http://localhost" + port + "/key")
+		resp, err := http.DefaultClient.Get(addr + "/key")
 		assert.NoError(t, err)
 		require.NotNil(t, resp)
 		require.Equal(t, 502, resp.StatusCode)

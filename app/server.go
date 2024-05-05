@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -20,7 +21,9 @@ type Server struct {
 	KeysService IKeysService
 }
 
-func (s *Server) Run(ctx context.Context, addr string) error {
+func (s *Server) Run(ctx context.Context, port uint16) error {
+	addr := fmt.Sprintf(":%d", port)
+
 	listenCfg := net.ListenConfig{}
 	listener, err := listenCfg.Listen(ctx, "tcp4", addr)
 	if err != nil {
