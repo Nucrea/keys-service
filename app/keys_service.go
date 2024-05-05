@@ -2,16 +2,21 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 func NewKeysService(
+	logger *zerolog.Logger,
 	rsaGenerator IRsaGenerator,
 	stack *Stack[[]byte],
 	capacity, maxThreads int,
 ) *KeysService {
 	return &KeysService{
+		logger:       logger,
 		rsaGenerator: rsaGenerator,
 		stack:        stack,
 		capacity:     capacity,
@@ -20,6 +25,7 @@ func NewKeysService(
 }
 
 type KeysService struct {
+	logger       *zerolog.Logger
 	rsaGenerator IRsaGenerator
 	stack        *Stack[[]byte]
 	capacity     int
@@ -30,42 +36,74 @@ func (k *KeysService) GetKey() ([]byte, bool) {
 	return k.stack.Pop()
 }
 
-func (k *KeysService) Routine(ctx context.Context) {
+func (k *KeysService) Routine(ctx context.Context) error {
+	logTicker := time.NewTicker(10 * time.Second)
+	errorChan := make(chan error, 2*k.maxThreads)
 	atmThreads := atomic.Int64{}
+	errorsCount := 0
+
 	defer func() {
+		k.logger.Log().Msg("stopping keys routine")
+
 		for atmThreads.Load() > 0 {
-			//NOP
+			k.idle()
 		}
+
+		close(errorChan)
+		logTicker.Stop()
+
+		k.logger.Log().Msg("keys routine stopped")
 	}()
+
+	k.logger.Log().Msgf("keys routine started, threads=%d, capacity=%d", k.maxThreads, k.capacity)
 
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
+		default:
+		}
+
+		select {
+		case err := <-errorChan:
+			errorsCount++
+			k.logger.Err(err).Msg("an error occured on generating rsa key (KeysService routine)")
 		default:
 		}
 
 		threads := int(atmThreads.Load())
-		if k.stack.Len()+threads >= k.capacity || threads >= k.maxThreads {
-			time.Sleep(time.Millisecond)
+		stackLen := k.stack.Len()
+
+		select {
+		case <-logTicker.C:
+			k.logger.Log().Msgf("working threads: %d, stack size: %d, errors count: %d", threads, stackLen, errorsCount)
+		default:
+		}
+
+		if stackLen+threads >= k.capacity || threads >= k.maxThreads {
+			k.idle()
 			continue
 		}
 
 		atmThreads.Add(1)
-		go k.keyJob(&atmThreads)
+		go k.keyJob(&atmThreads, &errorChan)
 	}
 }
 
-func (k *KeysService) keyJob(atmThreads *atomic.Int64) {
+func (k *KeysService) idle() {
+	time.Sleep(time.Millisecond)
+}
+
+func (k *KeysService) keyJob(atmThreads *atomic.Int64, errorChan *chan error) {
 	defer func() {
 		atmThreads.Add(-1)
 	}()
 
-	key, _ := k.rsaGenerator.NewKey()
-	// if err != nil {
-	// 	return fmt.Errorf("error generating rsa key: %w", err)
-	// }
+	key, err := k.rsaGenerator.NewKey()
+	if err != nil {
+		*errorChan <- fmt.Errorf("error when generating rsa key: %w", err)
+		return
+	}
 
 	k.stack.Push(key)
-	// return nil
 }

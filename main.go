@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"keys_service/app"
+	"os"
 )
 
 func main() {
-	ctx := context.Background()
-
 	a := app.App{}
-	a.Run(ctx)
+	a.Run(context.Background(), os.Args)
 }

@@ -1,0 +1,3 @@
+threads: 16
+stackSize: 5000
+port: 8080
