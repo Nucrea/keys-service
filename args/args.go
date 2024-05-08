@@ -7,7 +7,7 @@ type Args interface {
 }
 
 type args struct {
-	ConfigFilePath string `short:"c" long:"config_path" description:"A path to the config file" required:"true"`
+	ConfigFilePath string `short:"c" long:"config" description:"A path to the config file" required:"true"`
 }
 
 func (a *args) GetConfigFilePath() string {
